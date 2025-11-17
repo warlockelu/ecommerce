@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+</head>
+<body>
+<h2>Register</h2>
+
+<form id="regForm">
+    <input type="text" id="username" placeholder="Username" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button type="submit">Register</button>
+</form>
+
+<p><a href="login.html">Back to Login</a></p>
+
+<script>
+    document.getElementById('regForm').onsubmit = function (e) {
+        e.preventDefault();
+
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+
+        const params = new URLSearchParams();
+        params.append('username', u);
+        params.append('password', p);
+
+        fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            },
+            body: params.toString()
+        })
+            .then(res => res.text())
+            .then(text => {
+                alert('Server Response: ' + text);
+                if (text.startsWith('Register Success')) {
+                    window.location = 'login.html';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+            });
+    };
+</script>
+</body>
+</html>

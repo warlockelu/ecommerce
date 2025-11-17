@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+<h2>Login</h2>
+
+<form id="loginForm">
+    <input type="text" id="username" placeholder="Username" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button type="submit">Login</button>
+</form>
+
+<p>
+    New user?
+    <a href="register.html">Register here</a>
+</p>
+
+<script>
+    document.getElementById('loginForm').onsubmit = function (e) {
+        e.preventDefault();
+
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+
+        const params = new URLSearchParams();
+        params.append('username', u);
+        params.append('password', p);
+
+        fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            },
+            body: params.toString()
+        })
+            .then(async res => {
+                const text = await res.text();
+                if (!res.ok) {
+                    alert('Login failed: ' + text);
+                    return;
+                }
+                try {
+                    const data = JSON.parse(text);
+                    if (data.token) {
+                        // save JWT to localStorage for later API calls
+                        localStorage.setItem('token', data.token);
+                        alert('Login success!');
+                        window.location = 'items.html';
+                    } else {
+                        alert('Unexpected server response: ' + text);
+                    }
+                } catch (e) {
+                    alert('Unexpected server response: ' + text);
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+            });
+    };
+</script>
+</body>
+</html>

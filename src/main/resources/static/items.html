@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Items</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #topBar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .item-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            width: 350px;
+        }
+        .item-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .item-price {
+            font-size: 16px;
+            margin-top: 3px;
+        }
+        .item-desc {
+            color: gray;
+            font-size: 13px;
+        }
+        button {
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="topBar">
+    <h2>Item Catalog</h2>
+    <button id="logoutBtn">Logout</button>
+</div>
+
+<div id="itemList"></div>
+
+<br>
+
+<button id="checkoutBtn">Place Order</button>
+<button id="updateBtn" disabled>Update Last Order</button>
+<button id="cancelBtn" disabled>Cancel Last Order</button>
+
+<p id="orderStatus"></p>
+
+<script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location = 'login.html';
+    }
+
+    document.getElementById('logoutBtn').onclick = () => {
+        localStorage.removeItem('token');
+        window.location = 'login.html';
+    };
+
+    const itemListDiv = document.getElementById('itemList');
+    const statusP = document.getElementById('orderStatus');
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    const updateBtn = document.getElementById('updateBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    let cart = [];
+    let lastOrderId = null;
+    const addButtons = [];
+
+    fetch('/api/items', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to load items: ' + res.status);
+            return res.json();
+        })
+        .then(items => {
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+
+                card.innerHTML = `
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">$${item.price.toFixed(2)}</div>
+                    <div class="item-desc">${item.description}</div>
+                `;
+
+                const btn = document.createElement('button');
+                btn.textContent = 'Add to Cart';
+                btn.dataset.itemId = item.id;
+                btn.onclick = () => {
+                    cart.push(item.id);
+                    btn.disabled = true;
+                };
+
+                addButtons.push(btn);
+                card.appendChild(btn);
+                itemListDiv.appendChild(card);
+            });
+        })
+        .catch(err => alert(err));
+
+    function sendOrder(method, orderId) {
+        if (cart.length === 0 && method !== 'DELETE') {
+            alert('Cart is empty!');
+            return;
+        }
+
+        let url = '/api/orders';
+        if (orderId) url += '/' + orderId;
+
+        const opt = {
+            method,
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        };
+
+        if (method === 'POST' || method === 'PUT') {
+            opt.headers['Content-Type'] = 'application/json';
+            opt.body = JSON.stringify(cart);
+        }
+
+        return fetch(url, opt)
+            .then(res => {
+                if (!res.ok)
+                    return res.text().then(t => { throw new Error(t); });
+                return method === 'DELETE' ? null : res.json();
+            });
+    }
+
+    checkoutBtn.onclick = () => {
+        sendOrder('POST', null)
+            .then(order => {
+                if (!order) return;
+
+                lastOrderId = order.id;
+                statusP.textContent =
+                    `Order placed! Order ID: ${order.id}, Total: $${order.total.toFixed(2)}`;
+
+                cart = [];
+                addButtons.forEach(b => b.disabled = false);
+                updateBtn.disabled = false;
+                cancelBtn.disabled = false;
+            })
+            .catch(err => alert('Failed to place order: ' + err.message));
+    };
+
+    updateBtn.onclick = () => {
+        if (!lastOrderId) return alert('No order to update');
+
+        sendOrder('PUT', lastOrderId)
+            .then(order => {
+                statusP.textContent =
+                    `Order updated! Order ID: ${order.id}, New Total: $${order.total.toFixed(2)}`;
+                cart = [];
+                addButtons.forEach(b => b.disabled = false);
+            })
+            .catch(err => alert('Failed to update: ' + err.message));
+    };
+
+    cancelBtn.onclick = () => {
+        if (!lastOrderId) return alert('No order to cancel');
+
+        sendOrder('DELETE', lastOrderId)
+            .then(() => {
+                statusP.textContent = `Order cancelled: ${lastOrderId}`;
+                lastOrderId = null;
+                updateBtn.disabled = true;
+                cancelBtn.disabled = true;
+            })
+            .catch(err => alert('Failed to cancel: ' + err.message));
+    };
+</script>
+
+</body>
+</html>

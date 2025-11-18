@@ -1,4 +1,5 @@
 # Ecommerce Microservices Project
+## Jiajun Lu
 
 This project is a simple e-commerce system built using Spring Boot, MongoDB, Cassandra, Kafka, and Docker.
 
